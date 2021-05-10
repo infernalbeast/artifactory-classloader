@@ -1,0 +1,152 @@
+import org.gradle.api.internal.tasks.properties.TaskScheme
+
+buildscript {
+	def bom
+	if (System.env.BOM) {
+		bom = System.env.BOM
+	} else {
+		bom = "https://raw.githubusercontent.com/infernalbeast/bom/\${com.infernalbeast:bom}/"
+	}
+	project.ext["bom"] = bom.replaceAll("\\\$\\{com.infernalbeast:bom\\}", ext["com.infernalbeast:bom"])
+	apply from: project.ext["bom"] + "load.gradle", to: project
+	apply from: project.ext["gradle-resources"] + "buildscript.gradle", to: {
+		buildscript
+	}
+	dependencies {
+		if (gradle.parent == null) {
+			//classpath 'com.infernalbeast:artifactory-classloader-gradle-plugin'
+			classpath project(":artifactory-classloader-gradle-plugin")
+		}
+	}
+	configurations.classpath.attributes.attribute(TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE, 12)
+}
+
+plugins {
+	// Apply the java-library plugin to add support for Java Library
+	id 'java-library'
+}
+
+apply from: rootProject.ext["gradle-resources"] + "build-pre.gradle"
+
+repositories {
+	maven {
+		url "https://repository.apache.org/snapshots"
+	}
+}
+
+dependencies {
+	implementation group: 'javax.json', name: 'javax.json-api'
+	implementation group: 'commons-cli', name: 'commons-cli', changing: true
+	implementation group: 'commons-io', name: 'commons-io', version: '2.8.0'
+	implementation group: 'org.apache.commons', name: "commons-compress", version: "1.21-SNAPSHOT"
+
+	testImplementation 'junit:junit'
+}
+
+jar {
+	dependsOn compileJava
+	manifest {
+		attributes(
+				'Main-Class': 'test.artifactory.classloader.MainClass'
+				)
+	}
+}
+
+task runLazilyJar(type: JavaExec) {
+	dependsOn jar
+	main = "-jar"
+	args = [jar.archivePath, "--artifact-lazy", "true"]
+}
+test.finalizedBy runLazilyJar
+
+task runDiligentlyJar(type: JavaExec) {
+	dependsOn jar
+	main = "-jar"
+	args = [jar.archivePath, "--artifact-lazy", "false"]
+}
+test.finalizedBy runDiligentlyJar
+
+task lazyExecutableJar(type: Jar) {
+	dependsOn compileJava
+	from sourceSets.main.output
+	archiveName = "lazy-executable.jar"
+	manifest {
+		attributes(
+				'Main-Class': 'test.artifactory.classloader.MainClass'
+				)
+	}
+}
+task runLazyExecutableJar(type: JavaExec) {
+	dependsOn lazyExecutableJar
+	main = "-jar"
+	args = [lazyExecutableJar.archivePath]
+}
+test.finalizedBy runLazyExecutableJar
+
+task diligentExecutableJar(type: Jar) {
+	dependsOn compileJava
+	from sourceSets.main.output
+	archiveName = "diligent-executable.jar"
+	manifest {
+		attributes(
+				'Main-Class': 'test.artifactory.classloader.MainClass'
+				)
+	}
+}
+task runDiligentExecutableJar(type: JavaExec) {
+	dependsOn diligentExecutableJar
+	main = "-jar"
+	args = [diligentExecutableJar.archivePath]
+}
+test.finalizedBy runDiligentExecutableJar
+
+tasks.withType(Test) {
+	jvmArgs += ["--add-opens", "java.base/java.lang=ALL-UNNAMED"]
+	jvmArgs += ["--add-exports", "java.base/jdk.internal.module=ALL-UNNAMED"]
+	jvmArgs += ["--add-exports", "java.base/sun.security.jca=ALL-UNNAMED"]
+	jvmArgs += ["--add-exports", "java.base/sun.security.ssl=ALL-UNNAMED"]
+}
+
+tasks.withType(JavaExec) {
+	jvmArgs += ["--add-opens", "java.base/java.lang=ALL-UNNAMED"]
+	jvmArgs += ["--add-exports", "java.base/jdk.internal.module=ALL-UNNAMED"]
+	jvmArgs += ["--add-exports", "java.base/sun.security.jca=ALL-UNNAMED"]
+	jvmArgs += ["--add-exports", "java.base/sun.security.ssl=ALL-UNNAMED"]
+	jvmArgs += ["-Djava.util.logging.config.file=" + new File(project.projectDir,"logging.properties")]
+}
+
+tasks.withType(JavaCompile) {
+	options.compilerArgs += ["--add-exports", "java.base/jdk.internal.module=ALL-UNNAMED"]
+	options.compilerArgs += ["--add-exports", "java.base/sun.security.jca=ALL-UNNAMED"]
+	options.compilerArgs += ["--add-exports", "java.base/sun.security.ssl=ALL-UNNAMED"]
+}
+
+eclipse {
+	classpath {
+		file {
+			whenMerged { classpath ->
+				def jre = classpath.entries.find {
+					it.path.startsWith 'org.eclipse.jdt.launching.JRE_CONTAINER'
+				}
+				// https://stackoverflow.com/questions/54068992/how-to-tell-eclipse-to-add-exports-when-compiling/54071487#54071487
+				def attributes = jre.entryAttributes
+				attributes["module"]="true"
+				attributes["add-exports"]=["java.base/sun.security.jca=ALL-UNNAMED", "java.base/sun.security.ssl=ALL-UNNAMED", "java.base/jdk.internal.module=ALL-UNNAMED"].join(":")
+			}
+		}
+	}
+}
+
+if (gradle.parent == null) {
+	apply plugin: 'com.infernalbeast.artifactory-classloader'
+}
+apply from: rootProject.ext["gradle-resources"] + "thin-client.gradle", to: {
+	setJarTask lazyExecutableJar
+	setLazy true
+}
+apply from: rootProject.ext["gradle-resources"] + "thin-client.gradle", to: {
+	setJarTask diligentExecutableJar
+	setLazy false
+}
+
+apply from: rootProject.ext["gradle-resources"] + "build-post.gradle"

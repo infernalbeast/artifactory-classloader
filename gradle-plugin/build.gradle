@@ -1,0 +1,120 @@
+import org.yaml.snakeyaml.Yaml
+
+buildscript {
+	if (project == rootProject) {
+		def properties = new Properties()
+		new File(rootProject.projectDir.parent, "gradle.properties").toURI().toURL().withInputStream {
+			properties.load(it)
+		}
+		properties.each { key, value ->
+			project.ext[key]=value
+		}
+	}
+	def bom
+	if (System.env.BOM) {
+		bom = System.env.BOM
+	} else {
+		bom = "https://raw.githubusercontent.com/infernalbeast/bom/\${com.infernalbeast:bom}/"
+	}
+	project.ext["bom"] = bom.replaceAll("\\\$\\{com.infernalbeast:bom\\}", rootProject.ext["com.infernalbeast:bom"])
+	apply from: project.ext["bom"] + "load.gradle", to: project
+	apply from: project.ext["gradle-resources"] + "buildscript.gradle", to: {
+		buildscript
+	}
+	dependencies {
+		classpath group:'org.yaml', name:'snakeyaml'
+		classpath group:"com.gradle.publish", name:"plugin-publish-plugin"
+	}
+}
+
+plugins {
+	// Apply the java-library plugin to add support for Java Library
+	id 'java-library'
+}
+
+apply from: rootProject.ext["gradle-resources"] + "build-pre.gradle"
+
+apply plugin: 'java-gradle-plugin'
+apply plugin: 'com.gradle.plugin-publish'
+apply plugin: 'maven-publish'
+
+ext['gradle.publish.key'] = System.env.GRADLE_PUBLISH_KEY
+ext['gradle.publish.secret'] = System.env.GRADLE_PUBLISH_SECRET
+
+gradlePlugin {
+	plugins {
+		artifactoryClassloaderPlugin {
+			id = 'com.infernalbeast.artifactory-classloader'
+			displayName = 'Artifactory Classloader'
+			description = 'Generate an executable thin jar'
+			implementationClass = 'com.infernalbeast.artifactory.classloader.GradlePlugin'
+		}
+	}
+}
+
+pluginBundle {
+	website = 'https://github.com/infernalbeast/artifactory-classloader/blob/master/README.md'
+	vcsUrl = 'https://github.com/infernalbeast/artifactory-classloader/'
+	tags = ['executable', 'thin', 'jar']
+	plugins {
+		artifactoryClassloaderPlugin {
+			displayName="Executable Thin Jar Plugin"
+		}
+	}
+}
+
+publishing {
+	repositories {
+		maven {
+			url = "$buildDir/repo"
+		}
+	}
+}
+
+dependencies {
+	// The resources to repackage into executable jar files
+	implementation rootProject
+	implementation group: 'org.yaml', name:'snakeyaml'
+}
+
+configurations {
+	boot
+}
+
+dependencies {
+	boot rootProject
+}
+
+afterEvaluate {
+	jar {
+		zip64 = true
+		def libraries = []
+		into('META-INF/lib') {
+			for (def artifact: configurations.boot.resolvedConfiguration.resolvedArtifacts) {
+				libraries += artifact.file.name
+				from artifact.file
+			}
+			configurations.remove(configurations.boot)
+		}
+		into('META-INF') {
+			from {
+				File classPathIndex = new File(getTemporaryDir(), "index.yaml")
+				Yaml yaml = new Yaml()
+				Writer writer = new FileWriter(classPathIndex)
+				try {
+					yaml.dump(libraries, writer)
+				} finally {
+					writer.close()
+				}
+				classPathIndex
+			}
+		}
+		from {
+			configurations.runtimeClasspath.resolvedConfiguration.resolvedArtifacts.collect { artifact ->
+				zipTree(artifact.file)
+			}
+		}
+	}
+}
+
+apply from: rootProject.ext["gradle-resources"] + "build-post.gradle"

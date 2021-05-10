@@ -1,0 +1,25 @@
+def bom
+if (System.env.BOM) {
+	bom = System.env.BOM
+} else {
+	bom = "https://raw.githubusercontent.com/infernalbeast/bom/master/"
+}
+settings.ext["bom"] = bom.replaceAll("\\\$\\{com.infernalbeast:bom\\}", ext["com.infernalbeast:bom"])
+apply from: settings.ext["bom"] + "load.gradle", to: settings
+apply from: settings.ext["gradle-resources"] + "settings-pre.gradle"
+
+rootProject.name = 'artifactory-classloader'
+
+include ':gradle-plugin'
+if (System.env.GRADLE_PLUGIN_TEST) {
+	// Gradle limitation
+	// The plugin needs to be built once before it can be tested in a multi-project build
+	include ':gradle-plugin:test'
+}
+project(":gradle-plugin").name = "artifactory-classloader-gradle-plugin"
+include 'gradle-plugin-test'
+include ':test-module-1'
+include ':test-module-2'
+include ':test-module-3'
+
+apply from: settings.ext["gradle-resources"] + "settings-post.gradle"

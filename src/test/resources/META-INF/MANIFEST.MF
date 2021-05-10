@@ -1,0 +1,4 @@
+Manifest-Version: 1.0
+Main-Class: com.infernalbeast.artifactory.classloader.ArtifactoryMainClass
+Diligent-Artifactory-Main-Class: test.artifactory.classloader.MainClass
+Lazy-Artifactory-Main-Class: test.artifactory.classloader.MainClass

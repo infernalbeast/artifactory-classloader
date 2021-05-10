@@ -1,0 +1,934 @@
+buildscript {
+	def bom
+	if (System.env.BOM) {
+		bom = System.env.BOM
+	} else {
+		bom = "https://raw.githubusercontent.com/infernalbeast/bom/\${com.infernalbeast:bom}/"
+	}
+	project.ext["bom"] = bom.replaceAll("\\\$\\{com.infernalbeast:bom\\}", ext["com.infernalbeast:bom"])
+	apply from: project.ext["bom"] + "load.gradle", to: project
+	apply from: project.ext["gradle-resources"] + "buildscript.gradle", to: {
+		buildscript
+	}
+}
+
+plugins {
+	// Apply the java-library plugin to add support for Java Library
+	id 'java-library'
+}
+
+apply from: rootProject.ext["gradle-resources"] + "build-pre.gradle"
+
+// For test only
+repositories {
+	maven {
+		url "https://repository.apache.org/snapshots"
+	}
+}
+
+dependencies {
+	testCompileOnly project(":test-module-1")
+	testCompileOnly project(":test-module-2")
+	testCompileOnly project(":test-module-3")
+	testCompileOnly group: 'javax.json', name: 'javax.json-api'
+	testCompileOnly group: 'commons-cli', name: 'commons-cli', changing: true
+	testCompileOnly group: 'commons-io', name: 'commons-io', version: '2.8.0'
+	testCompileOnly group: 'org.apache.commons', name: "commons-compress", version: "1.21-SNAPSHOT"
+	testImplementation group: 'junit', name: 'junit'
+}
+
+configurations {
+	resolveTestCompileOnly {
+		extendsFrom testCompileOnly
+	}
+}
+
+def getResources(def classPath) {
+	def resources = []
+	classPath.each{ root ->
+		if (root.isDirectory()) {
+			fileTree(root).visit { fileVisitDetails ->
+				if (fileVisitDetails.file.isFile()) {
+					def file = fileVisitDetails.file
+					def reference=file.name
+					for (def current=file.parentFile; current!=root; current=current.parentFile) {
+						reference=current.name + "/" + reference
+					}
+					resources += reference
+				}
+			}
+		}
+	}
+	return resources
+}
+
+def generatedTestOutputDirectory = new File(project.getBuildDir(), "generated-test")
+task generateTestResources {
+	dependsOn compileTestJava
+	doFirst {
+		generatedTestOutputDirectory.mkdir()
+		def metaInf = new File(generatedTestOutputDirectory, "META-INF")
+		metaInf.mkdir()
+		def resources = new File(metaInf, "resources")
+		resources.text = getResources(sourceSets.test.runtimeClasspath).join("\n")
+	}
+	sourceSets.test.output.dir(Collections.singletonMap("buildBy", name), generatedTestOutputDirectory);
+}
+task generateTestLedger {
+	dependsOn compileTestJava
+	dependsOn jar
+	project(":artifactory-classloader-gradle-plugin").afterEvaluate { project ->
+		generateTestLedger.dependsOn project.tasks.compileJava
+	}
+	doFirst {
+		generatedTestOutputDirectory.mkdir()
+		def metaInf = new File(generatedTestOutputDirectory, "META-INF")
+		metaInf.mkdir()
+		def artifacts = new File(metaInf, "artifacts")
+
+		URL[] classPath=[]
+		project(":artifactory-classloader-gradle-plugin").sourceSets.main.runtimeClasspath.each { item ->
+			classPath += item.toURI().toURL()
+		}
+		ClassLoader parentClassLoader = Thread.currentThread().getContextClassLoader()
+		ClassLoader classLoader = new URLClassLoader(classPath, parentClassLoader)
+		Class<?> ledgerTaskClass = classLoader.loadClass("com.infernalbeast.artifactory.classloader.LedgerTask")
+		task generateLedger(type: ledgerTaskClass) {
+			sourceSet = sourceSets.test
+			configuration = configurations.resolveTestCompileOnly
+			outputFile = artifacts
+		}
+		generateLedger.action()
+	}
+	sourceSets.test.output.dir(Collections.singletonMap("buildBy", name), generatedTestOutputDirectory);
+}
+test.dependsOn generateTestLedger
+
+task runLazyModuleSystemClassLoaderJar(type: JavaExec) {
+	dependsOn generateTestLedger
+	classpath += sourceSets.test.runtimeClasspath
+	jvmArgs += [
+		"-Djava.system.class.loader=com.infernalbeast.artifactory.classloader.ArtifactoryClassLoader"
+	]
+	main = "test.artifactory.classloader.MainClass"
+}
+test.finalizedBy runLazyModuleSystemClassLoaderJar
+
+task runDiligentModuleSystemClassLoaderJar(type: JavaExec) {
+	dependsOn generateTestLedger
+	classpath += sourceSets.test.runtimeClasspath
+	jvmArgs += [
+		"-Djava.system.class.loader=com.infernalbeast.artifactory.classloader.ArtifactoryClassLoader"
+	]
+	main = "com.infernalbeast.lang.DiligentLazyMainClass"
+	args += ["--artifact-threads", "10"]
+	args += [
+		"--main-class",
+		"test.artifactory.classloader.MainClass"
+	]
+}
+test.finalizedBy runDiligentModuleSystemClassLoaderJar
+
+task classPathDiligentClassLoader(type: JavaExec) {
+	dependsOn generateTestResources
+	doFirst {
+		classpath = sourceSets.test.runtimeClasspath
+		def extraClassPath = []
+		configurations.resolveTestCompileOnly.resolvedConfiguration.files.each { artifact ->
+			extraClassPath += artifact.path
+		}
+		args += [
+			"--class-path",
+			extraClassPath.join(File.pathSeparator)
+		]
+	}
+	main = "com.infernalbeast.lang.DiligentMainClass"
+	args += [
+		"--main-class",
+		"test.artifactory.classloader.MainClass"
+	]
+}
+test.finalizedBy classPathDiligentClassLoader
+
+task classPathLazyClassLoader(type: JavaExec) {
+	dependsOn generateTestResources
+	doFirst {
+		classpath = sourceSets.test.runtimeClasspath
+		def extraClassPath = []
+		configurations.resolveTestCompileOnly.resolvedConfiguration.files.each { artifact ->
+			extraClassPath += artifact.path
+		}
+		args += [
+			"--lazy-class-path",
+			extraClassPath.join(File.pathSeparator)
+		]
+	}
+	main = "com.infernalbeast.lang.LazyMainClass"
+	args += [
+		"--main-class",
+		"test.artifactory.classloader.MainClass"
+	]
+}
+test.finalizedBy classPathLazyClassLoader
+
+task modulePathDiligentClassLoader(type: JavaExec) {
+	dependsOn generateTestResources
+	doFirst {
+		classpath = sourceSets.test.runtimeClasspath
+		def extraClassPath = []
+		configurations.resolveTestCompileOnly.resolvedConfiguration.files.each { artifact ->
+			extraClassPath += artifact.path
+		}
+		args += [
+			"--module-path",
+			extraClassPath.join(File.pathSeparator)
+		]
+	}
+	main = "com.infernalbeast.lang.DiligentMainClass"
+	args += [
+		"--main-class",
+		"test.artifactory.classloader.MainClass"
+	]
+}
+test.finalizedBy modulePathDiligentClassLoader
+
+task modulePathLazyClassLoader(type: JavaExec) {
+	dependsOn generateTestResources
+	doFirst {
+		classpath = sourceSets.test.runtimeClasspath
+		def extraClassPath = []
+		configurations.resolveTestCompileOnly.resolvedConfiguration.files.each { artifact ->
+			extraClassPath += artifact.path
+		}
+		args += [
+			"--lazy-module-path",
+			extraClassPath.join(File.pathSeparator)
+		]
+	}
+	main = "com.infernalbeast.lang.LazyMainClass"
+	args += [
+		"--main-class",
+		"test.artifactory.classloader.MainClass"
+	]
+}
+test.finalizedBy modulePathLazyClassLoader
+
+/*
+ * Module 2 reads an exported package from module 1
+ */
+task successExplicitlyExportedExplicitlyReadModulePathDiligentClassLoader(type: JavaExec) {
+	dependsOn generateTestResources
+	doFirst {
+		classpath = sourceSets.test.runtimeClasspath
+		def extraClassPath = []
+		configurations.resolveTestCompileOnly.resolvedConfiguration.files.each { artifact ->
+			extraClassPath += artifact.path
+		}
+		args += [
+			"--module-path",
+			extraClassPath.join(File.pathSeparator)
+		]
+	}
+	main = "com.infernalbeast.lang.DiligentMainClass"
+	args += [
+		"--main-class",
+		"test.artifactory.classloader.ExplicitlyExportedExplicitlyReadMainClass"
+	]
+}
+test.finalizedBy successExplicitlyExportedExplicitlyReadModulePathDiligentClassLoader
+
+task successExplicitlyExportedExplicitlyReadModulePathLazyClassLoader(type: JavaExec) {
+	dependsOn generateTestResources
+	doFirst {
+		classpath = sourceSets.test.runtimeClasspath
+		def extraClassPath = []
+		configurations.resolveTestCompileOnly.resolvedConfiguration.files.each { artifact ->
+			extraClassPath += artifact.path
+		}
+		args += [
+			"--lazy-module-path",
+			extraClassPath.join(File.pathSeparator)
+		]
+	}
+	main = "com.infernalbeast.lang.LazyMainClass"
+	args += [
+		"--main-class",
+		"test.artifactory.classloader.ExplicitlyExportedExplicitlyReadMainClass"
+	]
+}
+test.finalizedBy successExplicitlyExportedExplicitlyReadModulePathLazyClassLoader
+
+/**
+ * Module 1 does not export its private package to module 2
+ */
+task failNotExplicitlyExportedExplicitlyReadModulePathDiligentClassLoader(type: JavaExec) {
+	dependsOn generateTestResources
+	doFirst {
+		classpath = sourceSets.test.runtimeClasspath
+		def extraClassPath = []
+		configurations.resolveTestCompileOnly.resolvedConfiguration.files.each { artifact ->
+			extraClassPath += artifact.path
+		}
+		args += [
+			"--module-path",
+			extraClassPath.join(File.pathSeparator)
+		]
+	}
+	doLast {
+		if (executionResult.get().exitValue == 0) {
+			throw new GradleException("Test did not fail on " + name)
+		}
+	}
+	main = "com.infernalbeast.lang.DiligentMainClass"
+	args += [
+		"--main-class",
+		"test.artifactory.classloader.NotExplicitlyExportedExplicitlyReadMainClass"
+	]
+	ignoreExitValue = true
+}
+test.finalizedBy failNotExplicitlyExportedExplicitlyReadModulePathDiligentClassLoader
+
+task failNotExplicitlyExportedExplicitlyReadModulePathLazyClassLoader(type: JavaExec) {
+	dependsOn generateTestResources
+	doFirst {
+		classpath = sourceSets.test.runtimeClasspath
+		def extraClassPath = []
+		configurations.resolveTestCompileOnly.resolvedConfiguration.files.each { artifact ->
+			extraClassPath += artifact.path
+		}
+		args += [
+			"--lazy-module-path",
+			extraClassPath.join(File.pathSeparator)
+		]
+	}
+	doLast {
+		if (executionResult.get().exitValue == 0) {
+			throw new GradleException("Test did not fail on " + name)
+		}
+	}
+	main = "com.infernalbeast.lang.LazyMainClass"
+	args += [
+		"--main-class",
+		"test.artifactory.classloader.NotExplicitlyExportedExplicitlyReadMainClass"
+	]
+	ignoreExitValue = true
+}
+test.finalizedBy failNotExplicitlyExportedExplicitlyReadModulePathLazyClassLoader
+
+/*
+ * Module 1 does not export its private package to module 2
+ * Ues --add-exports to export to module 2
+ */
+task successNotExplicitlyExportedExplicitlyReadModulePathDiligentClassLoader(type: JavaExec) {
+	dependsOn generateTestResources
+	doFirst {
+		classpath = sourceSets.test.runtimeClasspath
+		def extraClassPath = []
+		configurations.resolveTestCompileOnly.resolvedConfiguration.files.each { artifact ->
+			extraClassPath += artifact.path
+		}
+		args += [
+			"--module-path",
+			extraClassPath.join(File.pathSeparator)
+		]
+	}
+	main = "com.infernalbeast.lang.DiligentMainClass"
+	args += [
+		"--main-class",
+		"test.artifactory.classloader.NotExplicitlyExportedExplicitlyReadMainClass"
+	]
+	args += [
+		"--add-exports",
+		"testmodule1/com.infernalbeast.testmodule1private=testmodule2"
+	]
+}
+test.finalizedBy successNotExplicitlyExportedExplicitlyReadModulePathDiligentClassLoader
+
+task successNotExplicitlyExportedExplicitlyReadModulePathLazyClassLoader(type: JavaExec) {
+	dependsOn generateTestResources
+	doFirst {
+		classpath = sourceSets.test.runtimeClasspath
+		def extraClassPath = []
+		configurations.resolveTestCompileOnly.resolvedConfiguration.files.each { artifact ->
+			extraClassPath += artifact.path
+		}
+		args += [
+			"--lazy-module-path",
+			extraClassPath.join(File.pathSeparator)
+		]
+	}
+	main = "com.infernalbeast.lang.LazyMainClass"
+	args += [
+		"--main-class",
+		"test.artifactory.classloader.NotExplicitlyExportedExplicitlyReadMainClass"
+	]
+	args += [
+		"--add-exports",
+		"testmodule1/com.infernalbeast.testmodule1private=testmodule2"
+	]
+}
+test.finalizedBy successNotExplicitlyExportedExplicitlyReadModulePathLazyClassLoader
+
+/**
+ * Module 3 does not read module 1
+ */
+task failExplicitlyExportedNotExplicitlyReadModulePathDiligentClassLoader(type: JavaExec) {
+	dependsOn generateTestResources
+	doFirst {
+		classpath = sourceSets.test.runtimeClasspath
+		def extraClassPath = []
+		configurations.resolveTestCompileOnly.resolvedConfiguration.files.each { artifact ->
+			extraClassPath += artifact.path
+		}
+		args += [
+			"--module-path",
+			extraClassPath.join(File.pathSeparator)
+		]
+	}
+	doLast {
+		if (executionResult.get().exitValue == 0) {
+			throw new GradleException("Test did not fail on " + name)
+		}
+	}
+	main = "com.infernalbeast.lang.DiligentMainClass"
+	args += [
+		"--main-class",
+		"test.artifactory.classloader.ExplicitlyExportedNotExplicitlyReadMainClass"
+	]
+	ignoreExitValue = true
+}
+test.finalizedBy failExplicitlyExportedNotExplicitlyReadModulePathDiligentClassLoader
+
+task failExplicitlyExportedNotExplicitlyReadModulePathLazyClassLoader(type: JavaExec) {
+	dependsOn generateTestResources
+	doFirst {
+		classpath = sourceSets.test.runtimeClasspath
+		def extraClassPath = []
+		configurations.resolveTestCompileOnly.resolvedConfiguration.files.each { artifact ->
+			extraClassPath += artifact.path
+		}
+		args += [
+			"--lazy-module-path",
+			extraClassPath.join(File.pathSeparator)
+		]
+	}
+	doLast {
+		if (executionResult.get().exitValue == 0) {
+			throw new GradleException("Test did not fail on " + name)
+		}
+	}
+	main = "com.infernalbeast.lang.LazyMainClass"
+	args += [
+		"--main-class",
+		"test.artifactory.classloader.ExplicitlyExportedNotExplicitlyReadMainClass"
+	]
+	ignoreExitValue = true
+}
+test.finalizedBy failExplicitlyExportedNotExplicitlyReadModulePathLazyClassLoader
+
+/**
+ * Module 3 does not read module 1
+ * Uses --add-reads to read module 1
+ */
+task successExplicitlyExportedNotExplicitlyReadModulePathDiligentClassLoader(type: JavaExec) {
+	dependsOn generateTestResources
+	doFirst {
+		classpath = sourceSets.test.runtimeClasspath
+		def extraClassPath = []
+		configurations.resolveTestCompileOnly.resolvedConfiguration.files.each { artifact ->
+			extraClassPath += artifact.path
+		}
+		args += [
+			"--module-path",
+			extraClassPath.join(File.pathSeparator)
+		]
+	}
+	main = "com.infernalbeast.lang.DiligentMainClass"
+	args += [
+		"--main-class",
+		"test.artifactory.classloader.ExplicitlyExportedNotExplicitlyReadMainClass"
+	]
+	args += [
+		"--add-reads",
+		"testmodule3=testmodule1"
+	]
+}
+test.finalizedBy successExplicitlyExportedNotExplicitlyReadModulePathDiligentClassLoader
+
+task successExplicitlyExportedNotExplicitlyReadModulePathLazyClassLoader(type: JavaExec) {
+	dependsOn generateTestResources
+	doFirst {
+		classpath = sourceSets.test.runtimeClasspath
+		def extraClassPath = []
+		configurations.resolveTestCompileOnly.resolvedConfiguration.files.each { artifact ->
+			extraClassPath += artifact.path
+		}
+		args += [
+			"--lazy-module-path",
+			extraClassPath.join(File.pathSeparator)
+		]
+	}
+	main = "com.infernalbeast.lang.LazyMainClass"
+	args += [
+		"--main-class",
+		"test.artifactory.classloader.ExplicitlyExportedNotExplicitlyReadMainClass"
+	]
+	args += [
+		"--add-reads",
+		"testmodule3=testmodule1"
+	]
+}
+test.finalizedBy successExplicitlyExportedNotExplicitlyReadModulePathLazyClassLoader
+
+/**
+ * Module 1 does not open its package to module 2
+ */
+task failExplicitlyExportedNotExplicitlyOpenModulePathDiligentClassLoader(type: JavaExec) {
+	dependsOn generateTestResources
+	doFirst {
+		classpath = sourceSets.test.runtimeClasspath
+		def extraClassPath = []
+		configurations.resolveTestCompileOnly.resolvedConfiguration.files.each { artifact ->
+			extraClassPath += artifact.path
+		}
+		args += [
+			"--module-path",
+			extraClassPath.join(File.pathSeparator)
+		]
+	}
+	doLast {
+		if (executionResult.get().exitValue == 0) {
+			throw new GradleException("Test did not fail on " + name)
+		}
+	}
+	main = "com.infernalbeast.lang.DiligentMainClass"
+	args += [
+		"--main-class",
+		"test.artifactory.classloader.ExplicitlyExportedNotExplicitlyOpenMainClass"
+	]
+	ignoreExitValue = true
+}
+test.finalizedBy failExplicitlyExportedNotExplicitlyOpenModulePathDiligentClassLoader
+
+task failExplicitlyExportedNotExplicitlyOpenModulePathLazyClassLoader(type: JavaExec) {
+	dependsOn generateTestResources
+	doFirst {
+		classpath = sourceSets.test.runtimeClasspath
+		def extraClassPath = []
+		configurations.resolveTestCompileOnly.resolvedConfiguration.files.each { artifact ->
+			extraClassPath += artifact.path
+		}
+		args += [
+			"--lazy-module-path",
+			extraClassPath.join(File.pathSeparator)
+		]
+	}
+	doLast {
+		if (executionResult.get().exitValue == 0) {
+			throw new GradleException("Test did not fail on " + name)
+		}
+	}
+	main = "com.infernalbeast.lang.LazyMainClass"
+	args += [
+		"--main-class",
+		"test.artifactory.classloader.ExplicitlyExportedNotExplicitlyOpenMainClass"
+	]
+	ignoreExitValue = true
+}
+test.finalizedBy failExplicitlyExportedNotExplicitlyOpenModulePathLazyClassLoader
+
+/**
+ * Module 1 does not open its package to module 2
+ * Uses --add-opens to open module 1
+ */
+task successExplicitlyExportedNotExplicitlyOpenModulePathDiligentClassLoader(type: JavaExec) {
+	dependsOn generateTestResources
+	doFirst {
+		classpath = sourceSets.test.runtimeClasspath
+		def extraClassPath = []
+		configurations.resolveTestCompileOnly.resolvedConfiguration.files.each { artifact ->
+			extraClassPath += artifact.path
+		}
+		args += [
+			"--module-path",
+			extraClassPath.join(File.pathSeparator)
+		]
+	}
+	main = "com.infernalbeast.lang.DiligentMainClass"
+	args += [
+		"--main-class",
+		"test.artifactory.classloader.ExplicitlyExportedNotExplicitlyOpenMainClass"
+	]
+	args += [
+		"--add-opens",
+		"testmodule1/com.infernalbeast.testmodule1private=testmodule3"
+	]
+}
+test.finalizedBy successExplicitlyExportedNotExplicitlyOpenModulePathDiligentClassLoader
+
+task successExplicitlyExportedNotExplicitlyOpenModulePathLazyClassLoader(type: JavaExec) {
+	dependsOn generateTestResources
+	doFirst {
+		classpath = sourceSets.test.runtimeClasspath
+		def extraClassPath = []
+		configurations.resolveTestCompileOnly.resolvedConfiguration.files.each { artifact ->
+			extraClassPath += artifact.path
+		}
+		args += [
+			"--lazy-module-path",
+			extraClassPath.join(File.pathSeparator)
+		]
+	}
+	main = "com.infernalbeast.lang.LazyMainClass"
+	args += [
+		"--main-class",
+		"test.artifactory.classloader.ExplicitlyExportedNotExplicitlyOpenMainClass"
+	]
+	args += [
+		"--add-opens",
+		"testmodule1/com.infernalbeast.testmodule1private=testmodule3"
+	]
+}
+test.finalizedBy successExplicitlyExportedNotExplicitlyOpenModulePathLazyClassLoader
+
+/*
+ * Unnamed module fails to read module 1 private package
+ */
+task failExportsUnnamedModulePathDiligentClassLoader(type: JavaExec) {
+	dependsOn generateTestResources
+	doFirst {
+		classpath = sourceSets.test.runtimeClasspath
+		def extraClassPath = []
+		configurations.resolveTestCompileOnly.resolvedConfiguration.files.each { artifact ->
+			extraClassPath += artifact.path
+		}
+		args += [
+			"--module-path",
+			extraClassPath.join(File.pathSeparator)
+		]
+	}
+	doLast {
+		if (executionResult.get().exitValue == 0) {
+			throw new GradleException("Test did not fail on " + name)
+		}
+	}
+	main = "com.infernalbeast.lang.DiligentMainClass"
+	args += [
+		"--main-class",
+		"test.artifactory.classloader.ExportsUnnamedMainClass"
+	]
+	ignoreExitValue = true
+}
+test.finalizedBy failExportsUnnamedModulePathDiligentClassLoader
+
+task failExportsUnnamedModulePathLazyClassLoader(type: JavaExec) {
+	dependsOn generateTestResources
+	doFirst {
+		classpath = sourceSets.test.runtimeClasspath
+		def extraClassPath = []
+		configurations.resolveTestCompileOnly.resolvedConfiguration.files.each { artifact ->
+			extraClassPath += artifact.path
+		}
+		args += [
+			"--lazy-module-path",
+			extraClassPath.join(File.pathSeparator)
+		]
+	}
+	doLast {
+		if (executionResult.get().exitValue == 0) {
+			throw new GradleException("Test did not fail on " + name)
+		}
+	}
+	main = "com.infernalbeast.lang.LazyMainClass"
+	args += [
+		"--main-class",
+		"test.artifactory.classloader.ExportsUnnamedMainClass"
+	]
+	ignoreExitValue = true
+}
+test.finalizedBy failExportsUnnamedModulePathLazyClassLoader
+
+/*
+ * Uses --add-exports for to unnamed module
+ */
+task successExportsUnnamedModulePathDiligentClassLoader(type: JavaExec) {
+	dependsOn generateTestResources
+	doFirst {
+		classpath = sourceSets.test.runtimeClasspath
+		def extraClassPath = []
+		configurations.resolveTestCompileOnly.resolvedConfiguration.files.each { artifact ->
+			extraClassPath += artifact.path
+		}
+		args += [
+			"--module-path",
+			extraClassPath.join(File.pathSeparator)
+		]
+	}
+	main = "com.infernalbeast.lang.DiligentMainClass"
+	args += [
+		"--main-class",
+		"test.artifactory.classloader.ExportsUnnamedMainClass"
+	]
+	args += [
+		"--add-exports",
+		"testmodule1/com.infernalbeast.testmodule1private=ALL-UNNAMED"
+	]
+}
+test.finalizedBy successExportsUnnamedModulePathDiligentClassLoader
+
+task successExportsUnnamedModulePathLazyClassLoader(type: JavaExec) {
+	dependsOn generateTestResources
+	doFirst {
+		classpath = sourceSets.test.runtimeClasspath
+		def extraClassPath = []
+		configurations.resolveTestCompileOnly.resolvedConfiguration.files.each { artifact ->
+			extraClassPath += artifact.path
+		}
+		args += [
+			"--lazy-module-path",
+			extraClassPath.join(File.pathSeparator)
+		]
+	}
+	main = "com.infernalbeast.lang.LazyMainClass"
+	args += [
+		"--main-class",
+		"test.artifactory.classloader.ExportsUnnamedMainClass"
+	]
+	args += [
+		"--add-exports",
+		"testmodule1/com.infernalbeast.testmodule1private=ALL-UNNAMED"
+	]
+}
+test.finalizedBy successExportsUnnamedModulePathLazyClassLoader
+
+/*
+ * Unnamed module fails to open module 1 private package
+ */
+task failOpensUnnamedModulePathDiligentClassLoader(type: JavaExec) {
+	dependsOn generateTestResources
+	doFirst {
+		classpath = sourceSets.test.runtimeClasspath
+		def extraClassPath = []
+		configurations.resolveTestCompileOnly.resolvedConfiguration.files.each { artifact ->
+			extraClassPath += artifact.path
+		}
+		args += [
+			"--module-path",
+			extraClassPath.join(File.pathSeparator)
+		]
+	}
+	doLast {
+		if (executionResult.get().exitValue == 0) {
+			throw new GradleException("Test did not fail on " + name)
+		}
+	}
+	main = "com.infernalbeast.lang.DiligentMainClass"
+	args += [
+		"--main-class",
+		"test.artifactory.classloader.OpensUnnamedMainClass"
+	]
+	ignoreExitValue = true
+}
+test.finalizedBy failOpensUnnamedModulePathDiligentClassLoader
+
+task failOpensUnnamedModulePathLazyClassLoader(type: JavaExec) {
+	dependsOn generateTestResources
+	doFirst {
+		classpath = sourceSets.test.runtimeClasspath
+		def extraClassPath = []
+		configurations.resolveTestCompileOnly.resolvedConfiguration.files.each { artifact ->
+			extraClassPath += artifact.path
+		}
+		args += [
+			"--lazy-module-path",
+			extraClassPath.join(File.pathSeparator)
+		]
+	}
+	doLast {
+		if (executionResult.get().exitValue == 0) {
+			throw new GradleException("Test did not fail on " + name)
+		}
+	}
+	main = "com.infernalbeast.lang.LazyMainClass"
+	args += [
+		"--main-class",
+		"test.artifactory.classloader.OpensUnnamedMainClass"
+	]
+	ignoreExitValue = true
+}
+test.finalizedBy failOpensUnnamedModulePathLazyClassLoader
+
+/*
+ * Uses --add-opens for unnamed module
+ */
+task successOpensUnnamedModulePathDiligentClassLoader(type: JavaExec) {
+	dependsOn generateTestResources
+	doFirst {
+		classpath = sourceSets.test.runtimeClasspath
+		def extraClassPath = []
+		configurations.resolveTestCompileOnly.resolvedConfiguration.files.each { artifact ->
+			extraClassPath += artifact.path
+		}
+		args += [
+			"--module-path",
+			extraClassPath.join(File.pathSeparator)
+		]
+	}
+	main = "com.infernalbeast.lang.DiligentMainClass"
+	args += [
+		"--main-class",
+		"test.artifactory.classloader.OpensUnnamedMainClass"
+	]
+	args += [
+		"--add-opens",
+		"testmodule1/com.infernalbeast.testmodule1private=ALL-UNNAMED"
+	]
+}
+test.finalizedBy successOpensUnnamedModulePathDiligentClassLoader
+
+task successOpensUnnamedModulePathLazyClassLoader(type: JavaExec) {
+	dependsOn generateTestResources
+	doFirst {
+		classpath = sourceSets.test.runtimeClasspath
+		def extraClassPath = []
+		configurations.resolveTestCompileOnly.resolvedConfiguration.files.each { artifact ->
+			extraClassPath += artifact.path
+		}
+		args += [
+			"--lazy-module-path",
+			extraClassPath.join(File.pathSeparator)
+		]
+	}
+	main = "com.infernalbeast.lang.LazyMainClass"
+	args += [
+		"--main-class",
+		"test.artifactory.classloader.OpensUnnamedMainClass"
+	]
+	args += [
+		"--add-opens",
+		"testmodule1/com.infernalbeast.testmodule1private=ALL-UNNAMED"
+	]
+}
+test.finalizedBy successOpensUnnamedModulePathLazyClassLoader
+
+tasks.withType(Test) {
+	project(":test-module-1").afterEvaluate {
+		dependsOn project(":test-module-1").tasks.jar
+	}
+	project(":test-module-2").afterEvaluate {
+		dependsOn project(":test-module-2").tasks.jar
+	}
+	project(":test-module-3").afterEvaluate {
+		dependsOn project(":test-module-3").tasks.jar
+	}
+	jvmArgs += [
+		"-Djava.util.logging.config.file=" + new File(project.projectDir, "logging.properties")
+	]
+	jvmArgs += [
+		"--add-opens",
+		"java.base/java.lang=ALL-UNNAMED"
+	]
+	jvmArgs += [
+		"--add-exports",
+		"java.base/jdk.internal.module=ALL-UNNAMED"
+	]
+	jvmArgs += [
+		"--add-exports",
+		"java.base/jdk.internal.logger=ALL-UNNAMED"
+	]
+	jvmArgs += [
+		"--add-exports",
+		"java.base/sun.security.jca=ALL-UNNAMED"
+	]
+	jvmArgs += [
+		"--add-exports",
+		"java.base/sun.security.ssl=ALL-UNNAMED"
+	]
+	jvmArgs += [
+		"-Ddebug=true",
+	]
+}
+tasks.withType(JavaExec) {
+	project(":test-module-1").afterEvaluate {
+		dependsOn project(":test-module-1").tasks.jar
+	}
+	project(":test-module-2").afterEvaluate {
+		dependsOn project(":test-module-2").tasks.jar
+	}
+	project(":test-module-3").afterEvaluate {
+		dependsOn project(":test-module-3").tasks.jar
+	}
+	jvmArgs += [
+		"-Djava.util.logging.config.file=" + new File(project.projectDir, "logging.properties")
+	]
+	jvmArgs += [
+		"--add-opens",
+		"java.base/java.lang=ALL-UNNAMED"
+	]
+	jvmArgs += [
+		"--add-exports",
+		"java.base/jdk.internal.module=ALL-UNNAMED"
+	]
+	jvmArgs += [
+		"--add-exports",
+		"java.base/jdk.internal.logger=ALL-UNNAMED"
+	]
+	jvmArgs += [
+		"--add-exports",
+		"java.base/sun.security.jca=ALL-UNNAMED"
+	]
+	jvmArgs += [
+		"--add-exports",
+		"java.base/sun.security.ssl=ALL-UNNAMED"
+	]
+	jvmArgs += [
+		"-Djava.util.logging.config.file=" + new File(project.projectDir, "logging.properties")
+	]
+	jvmArgs += [
+		"-Ddebug=true",
+	]
+}
+tasks.withType(JavaCompile) {
+	options.compilerArgs += [
+		"--add-exports",
+		"java.base/jdk.internal.module=ALL-UNNAMED"
+	]
+	options.compilerArgs += [
+		"--add-exports",
+		"java.base/jdk.internal.logger=ALL-UNNAMED"
+	]
+	options.compilerArgs += [
+		"--add-exports",
+		"java.base/sun.security.jca=ALL-UNNAMED"
+	]
+	options.compilerArgs += [
+		"--add-exports",
+		"java.base/sun.security.ssl=ALL-UNNAMED"
+	]
+}
+
+eclipse {
+	classpath {
+		plusConfigurations += [
+			configurations.testCompileOnly
+		]
+		file {
+			whenMerged { classpath ->
+				def jre = classpath.entries.find {
+					it.path.startsWith 'org.eclipse.jdt.launching.JRE_CONTAINER'
+				}
+				// https://stackoverflow.com/questions/54068992/how-to-tell-eclipse-to-add-exports-when-compiling/54071487#54071487
+				def attributes = jre.entryAttributes
+				attributes["module"]="true"
+				attributes["add-exports"]=[
+					"java.base/sun.security.jca=ALL-UNNAMED",
+					"java.base/sun.security.ssl=ALL-UNNAMED",
+					"java.base/jdk.internal.module=ALL-UNNAMED",
+					"java.base/jdk.internal.logger=ALL-UNNAMED",
+				].join(":")
+			}
+		}
+	}
+}
+
+apply from: rootProject.ext["gradle-resources"] + "build-post.gradle"

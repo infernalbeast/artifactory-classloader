@@ -1,0 +1,104 @@
+package com.infernalbeast.artifactory.classpath;
+
+import java.io.IOException;
+import java.io.ObjectOutputStream;
+import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
+
+import com.infernalbeast.artifactory.classpath.Dependencies.Artifact;
+import com.infernalbeast.artifactory.classpath.Dependencies.Artifact.ArtifactImpl;
+import com.infernalbeast.artifactory.classpath.Dependencies.Artifact.Type;
+import com.infernalbeast.artifactory.classpath.Dependencies.ArtifactModule.ArtifactModuleImpl;
+import com.infernalbeast.artifactory.classpath.Dependencies.Artifactory;
+import com.infernalbeast.artifactory.classpath.Dependencies.Artifactory.ArtifactoryImpl;
+import com.infernalbeast.artifactory.classpath.Dependencies.DependenciesImpl;
+
+import test.artifactory.classpath.MainClass;
+
+public class TestLedgerGenerate {
+	public static void main(final String[] arguments) throws IOException {
+		List<String> otherArguments = new ArrayList<>();
+		String output = null;
+		String artifactDirectory = null;
+		for (int argumentCount = 0; argumentCount < arguments.length; argumentCount++) {
+			String argument = arguments[argumentCount];
+			if (argument.startsWith("-")) {
+				String normalizedArgument;
+				if (argument.startsWith("--")) {
+					normalizedArgument = argument.substring(2);
+				} else {
+					normalizedArgument = argument.substring(1);
+				}
+				switch (normalizedArgument) {
+				case "output":
+					if (output == null) {
+						argumentCount++;
+						output = arguments[argumentCount];
+					} else {
+						otherArguments.add(argument);
+					}
+					break;
+				case "artifact-directory":
+					if (artifactDirectory == null) {
+						argumentCount++;
+						artifactDirectory = arguments[argumentCount];
+					} else {
+						otherArguments.add(argument);
+					}
+					break;
+				default:
+					otherArguments.add(argument);
+				}
+			} else {
+				otherArguments.add(argument);
+			}
+		}
+		generateArtifacts(Paths.get(output), Paths.get(artifactDirectory));
+	}
+
+	private static void generateArtifacts(final Path artifactsPath, final Path directory) throws IOException {
+		List<Artifactory> artifactories = Arrays
+				.asList(new ArtifactoryImpl(null, new URL("https://repo1.maven.org/maven2/"), null));
+		List<Artifact> artifacts = Arrays.asList(
+				new ArtifactImpl(new ArtifactModuleImpl("commons-io", "commons-io"), "2.8.0", null, null, null, null,
+						Type.CLASSPATH),
+				new ArtifactImpl(new ArtifactModuleImpl("commons-cli", "commons-cli"), "1.4", null, null, null, null,
+						Type.CLASSPATH),
+				new ArtifactImpl(new ArtifactModuleImpl("javax.json", "javax.json-api"), "1.1.4", null, null, null,
+						null, Type.CLASSPATH),
+				new ArtifactImpl(new ArtifactModuleImpl("org.apache.commons", "commons-compress"), "1.20", null, null,
+						null, null, Type.CLASSPATH));
+		List<Artifact> resolvedArtifacts = new ArrayList<>();
+		ArtifactoryClient artifactoryClient = new ArtifactoryClient(artifactories, 5, directory);
+		for (Artifact artifact : artifacts) {
+			List<String> resources = new ArrayList<>();
+			Path artifactPath = artifactoryClient.get(artifact);
+			try (ZipInputStream zipInputStream = new ZipInputStream(Files.newInputStream(artifactPath))) {
+				for (ZipEntry zipEntry = zipInputStream.getNextEntry(); zipEntry != null; zipEntry = zipInputStream
+						.getNextEntry()) {
+					if (!zipEntry.isDirectory()) {
+						String resource = zipEntry.getName();
+						resources.add(resource);
+					}
+				}
+			} catch (IOException e) {
+				throw new RuntimeException(e);
+			}
+			resolvedArtifacts
+					.add(new ArtifactImpl(artifact.getModule(), artifact.getVersion(), artifact.getUniqueVersion(),
+							artifact.getClassifier(), artifact.getExtension(), resources, Type.CLASSPATH));
+		}
+		Dependencies dependencies = new DependenciesImpl(artifactories, resolvedArtifacts,
+				Arrays.asList(MainClass.class.getName().replaceAll("\\.", "/") + ".class"), null, null);
+		try (ObjectOutputStream objectOutputStream = new ObjectOutputStream(Files.newOutputStream(artifactsPath))) {
+			objectOutputStream.writeObject(dependencies);
+		}
+	}
+}
