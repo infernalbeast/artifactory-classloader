@@ -35,11 +35,24 @@ plugins {
 apply from: rootProject.ext["gradle-resources"] + "build-pre.gradle"
 
 apply plugin: 'java-gradle-plugin'
-apply plugin: 'com.gradle.plugin-publish'
 apply plugin: 'maven-publish'
+apply plugin: 'com.gradle.plugin-publish'
 
-ext['gradle.publish.key'] = System.env.GRADLE_PUBLISH_KEY
-ext['gradle.publish.secret'] = System.env.GRADLE_PUBLISH_SECRET
+if (System.env.VERSION) {
+	version = System.env.VERSION
+}
+if (System.env.GRADLE_PUBLISH_KEY) {
+	ext['gradle.publish.key'] = System.env.GRADLE_PUBLISH_KEY
+}
+if (System.env.GRADLE_PUBLISH_SECRET) {
+	ext['gradle.publish.secret'] = System.env.GRADLE_PUBLISH_SECRET
+}
+
+pluginBundle {
+	website = "https://github.com/infernalbeast/artifactory-classloader"
+	vcsUrl = "https://github.com/infernalbeast/artifactory-classloader.git"
+	tags = ["thin client", "maven"]
+}
 
 gradlePlugin {
 	plugins {
@@ -110,7 +123,8 @@ afterEvaluate {
 			}
 		}
 		from {
-			configurations.runtimeClasspath.resolvedConfiguration.resolvedArtifacts.collect { artifact ->
+			configurations.runtimeClasspath.resolvedConfiguration.resolvedArtifacts.collect {
+				artifact ->
 				zipTree(artifact.file)
 			}
 		}
