@@ -77,6 +77,7 @@ plugins {
 }
 
 artifactoryClassloader {
+	// This enumerates the dependencies and stores it as a resource
 	task thinClientLedger(type: ledgerTaskClass) {
 		// Required: The source set to be modified
 		sourceSet = sourceSets.main
@@ -108,6 +109,7 @@ artifactoryClassloader {
 			]
 		]
 	}
+	// This configures the META-INF\MANIFEST.MF
 	task thinClient(type: artifactTaskClass) {
 		dependsOn thinClientLedger
 		// Required: The task which generates the executable jar
