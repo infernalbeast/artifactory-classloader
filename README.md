@@ -23,9 +23,9 @@ Fat jars are problematic in the sense they duplicate data and can become very la
 * `com.infernalbeast.lang.ThinMainClass`
 * `--main-class`
 The class which contains the static main method to proxy.
-* `--classpath <CLASSPATH>`  
+* `--class-path <CLASSPATH>`  
 Additional dependencies.
-* `--lazy-classpath <CLASSPATH>`  
+* `--lazy-class-path <CLASSPATH>`  
 Additional dependencies which are loaded on demand.
 
 ### Jar Options
@@ -33,13 +33,13 @@ Additional dependencies which are loaded on demand.
 Set the number of times a failed pull from the artifactory is attempted. (default: 1)
 * `--artifact-directory <FOLDER>`  
 Set the location to store artifacts which are downloaded from the artifactories. (default: `${user.home}`/.artifacts)
-* `--classpath <CLASSPATH>`  
+* `--class-path <CLASSPATH>`  
 Additional dependencies above those which have already been defined in the thin jar.
-* `--lazy-classpath <CLASSPATH>`  
+* `--lazy-class-path <CLASSPATH>`  
 Additional dependencies which are loaded on demand above those which have already been defined in the thin jar.
 
 ```
-java --add-opens java.base/java.lang=ALL-UNNAMED -jar myprogram.jar --classpath <CLASSPATH> --artifact-retry <INTEGER> --artifact-directory <FOLDER>
+java --add-opens java.base/java.lang=ALL-UNNAMED -jar myprogram.jar --class-path <CLASSPATH> --artifact-retry <INTEGER> --artifact-directory <FOLDER>
 ```
 
 ### Experimental
