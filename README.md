@@ -1,25 +1,25 @@
-#Executable Thin Jar
-##About
+# Executable Thin Jar
+## About
 This allows building a thin jar executable for running a complete java application. When the jar executable is built, the artifactories and artifacts references are stored with the executable jar and not the artifacts themselves.
 
 When the jar is executed, if the artifacts have not already been downloaded, the artifactories are searched as previously defined and they are download loaded to the system and made available. The system "java.class.path" is altered to reflect these changes.
 
 The next time the jar is executed it loads the cached dependencies.
 
-##Why
+## Why
 Historically, if you want a self contained java executable a jar file, the dependencies in order to run needed to be included in the jar file, this was coined a "fat jar"
 
 Fat jars are problematic in the sense they duplicate data and can become very large, which can quickly consume resources on artifactories that host them. This project attempts to eliminate the need to upload executable jar files of significant size.
 
-##Requirements
+## Requirements
 * Java 11
 * Gradle 6.8.x
 
-##Build
+## Build
 `gradle clean build`
 
-##Usage
-###Main Class Options
+## Usage
+### Main Class Options
 * `com.infernalbeast.lang.ThinMainClass`
 * `--main-class`
 The class which contains the static main method to proxy.
