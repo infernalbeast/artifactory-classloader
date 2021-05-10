@@ -28,7 +28,7 @@ Additional dependencies.
 * `--lazy-classpath <CLASSPATH>`  
 Additional dependencies which are loaded on demand.
 
-###Jar Options
+### Jar Options
 * `--artifact-retry <INTEGER>`  
 Set the number of times a failed pull from the artifactory is attempted. (default: 1)
 * `--artifact-directory <FOLDER>`  
@@ -54,14 +54,14 @@ $module/$package=$reflectingmodule opens $package of $module for deep reflection
 * `--add-reads`
 $module=$targets adds readability edges from $module to all modules in the comma-separated list $targets
 
-##Suppress Reflection Warnings
+## Suppress Reflection Warnings
 To suppress warnings regarding reflection use the following parameter
 `--add-opens java.base/java.lang=ALL-UNNAMED`
 
-##Gradle Plugin
+## Gradle Plugin
 The gradle plugin which can be used to generate executable jar files which are thin jar capable.
 
-###Issues
+### Issues
 While it is capable to adding dependencies into a module path dynamically, gradle does not yet seem to provide a clear list of modules which are added to the module path. Therefore, at the moment all dependencies are added to the classpath.
 
 ```
