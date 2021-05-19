@@ -27,9 +27,9 @@ repositories {
 }
 
 dependencies {
-	testCompileOnly project(":test-module-1")
-	testCompileOnly project(":test-module-2")
-	testCompileOnly project(":test-module-3")
+	testCompileOnly project(":artifactory-classloader-test-module-1")
+	testCompileOnly project(":artifactory-classloader-test-module-2")
+	testCompileOnly project(":artifactory-classloader-test-module-3")
 	testCompileOnly group: 'javax.json', name: 'javax.json-api'
 	testCompileOnly group: 'commons-cli', name: 'commons-cli', changing: true
 	testCompileOnly group: 'commons-io', name: 'commons-io', version: '2.8.0'
@@ -815,14 +815,14 @@ task successOpensUnnamedModulePathLazyClassLoader(type: JavaExec) {
 test.finalizedBy successOpensUnnamedModulePathLazyClassLoader
 
 tasks.withType(Test) {
-	project(":test-module-1").afterEvaluate {
-		dependsOn project(":test-module-1").tasks.jar
+	project(":artifactory-classloader-test-module-1").afterEvaluate {
+		dependsOn project(":artifactory-classloader-test-module-1").tasks.jar
 	}
-	project(":test-module-2").afterEvaluate {
-		dependsOn project(":test-module-2").tasks.jar
+	project(":artifactory-classloader-test-module-2").afterEvaluate {
+		dependsOn project(":artifactory-classloader-test-module-2").tasks.jar
 	}
-	project(":test-module-3").afterEvaluate {
-		dependsOn project(":test-module-3").tasks.jar
+	project(":artifactory-classloader-test-module-3").afterEvaluate {
+		dependsOn project(":artifactory-classloader-test-module-3").tasks.jar
 	}
 	jvmArgs += [
 		"-Djava.util.logging.config.file=" + new File(project.projectDir, "logging.properties")
@@ -852,14 +852,14 @@ tasks.withType(Test) {
 	]
 }
 tasks.withType(JavaExec) {
-	project(":test-module-1").afterEvaluate {
-		dependsOn project(":test-module-1").tasks.jar
+	project(":artifactory-classloader-test-module-1").afterEvaluate {
+		dependsOn project(":artifactory-classloader-test-module-1").tasks.jar
 	}
-	project(":test-module-2").afterEvaluate {
-		dependsOn project(":test-module-2").tasks.jar
+	project(":artifactory-classloader-test-module-2").afterEvaluate {
+		dependsOn project(":artifactory-classloader-test-module-2").tasks.jar
 	}
-	project(":test-module-3").afterEvaluate {
-		dependsOn project(":test-module-3").tasks.jar
+	project(":artifactory-classloader-test-module-3").afterEvaluate {
+		dependsOn project(":artifactory-classloader-test-module-3").tasks.jar
 	}
 	jvmArgs += [
 		"-Djava.util.logging.config.file=" + new File(project.projectDir, "logging.properties")

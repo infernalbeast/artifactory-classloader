@@ -33,7 +33,7 @@ java {
 }
 
 dependencies {
-	compileOnly project(":test-module-1") 
+	compileOnly project(":artifactory-classloader-test-module-1")
 }
 
 compileJava {
@@ -45,6 +45,9 @@ compileJava {
 
 eclipse {
 	classpath {
+		plusConfigurations += [
+			configurations.compileOnly
+		]
 		file {
 			whenMerged { classpath ->
 				def jre = classpath.entries.find {

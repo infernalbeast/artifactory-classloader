@@ -15,11 +15,15 @@ if (System.env.GRADLE_PLUGIN_TEST) {
 	// Gradle limitation
 	// The plugin needs to be built once before it can be tested in a multi-project build
 	include ':gradle-plugin:test'
+	project(":gradle-plugin:test").name = rootProject.name + "-gradle-plugin-test"
 }
-project(":gradle-plugin").name = "artifactory-classloader-gradle-plugin"
-include 'gradle-plugin-test'
+//include 'gradle-plugin-test'
 include ':test-module-1'
+project(":test-module-1").name = rootProject.name + "-test-module-1"
 include ':test-module-2'
+project(":test-module-2").name = rootProject.name + "-test-module-2"
 include ':test-module-3'
+project(":test-module-3").name = rootProject.name + "-test-module-3"
+project(":gradle-plugin").name = rootProject.name + "-gradle-plugin"
 
 apply from: settings.ext["gradle-resources"] + "settings-post.gradle"

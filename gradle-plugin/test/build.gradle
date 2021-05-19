@@ -139,14 +139,14 @@ eclipse {
 
 if (gradle.parent == null) {
 	apply plugin: 'com.infernalbeast.artifactory-classloader'
-}
-apply from: rootProject.ext["gradle-resources"] + "thin-client.gradle", to: {
-	setJarTask lazyExecutableJar
-	setLazy true
-}
-apply from: rootProject.ext["gradle-resources"] + "thin-client.gradle", to: {
-	setJarTask diligentExecutableJar
-	setLazy false
+	apply from: rootProject.ext["gradle-resources"] + "thin-client.gradle", to: {
+		setJarTask lazyExecutableJar
+		setLazy true
+	}
+	apply from: rootProject.ext["gradle-resources"] + "thin-client.gradle", to: {
+		setJarTask diligentExecutableJar
+		setLazy false
+	}
 }
 
 apply from: rootProject.ext["gradle-resources"] + "build-post.gradle"

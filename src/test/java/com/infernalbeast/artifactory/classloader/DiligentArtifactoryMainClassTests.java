@@ -12,8 +12,6 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import com.infernalbeast.artifactory.classloader.DiligentArtifactoryMainClass;
-
 public class DiligentArtifactoryMainClassTests {
 	Path libraries = Paths.get(System.getProperty("java.io.tmpdir")).resolve("libraries");
 

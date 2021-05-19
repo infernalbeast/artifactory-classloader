@@ -12,8 +12,6 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import com.infernalbeast.artifactory.classloader.LazyArtifactoryMainClass;
-
 public class LazyArtifactoryMainClassTests {
 	Path libraries = Paths.get(System.getProperty("java.io.tmpdir")).resolve("libraries");
 

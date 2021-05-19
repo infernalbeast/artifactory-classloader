@@ -21,8 +21,6 @@ import com.infernalbeast.lang.GenerateUtils.ModuleAndClassPathResources;
 import com.infernalbeast.lang.LazyClassLoader;
 
 public class ArtifactoryClassLoader extends LazyClassLoader implements Diligent {
-	private static final boolean DEBUG = System.getProperty("debug") != null
-			|| System.getProperty("debug." + ArtifactoryClassLoader.class.getName()) != null;
 	private final Map<GenerateUrl, Collection<String>> classPathByLazyUrl;
 	private final Map<GenerateUrl, Collection<String>> modulePathByLazyUrl;
 

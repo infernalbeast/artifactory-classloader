@@ -57,6 +57,7 @@ public class MainClass extends Parent {
 		System.out.println("SYSTEM CLASS LOADER: " + systemClassLoader.getClass().getName());
 
 		System.out.println("SIBLING");
+		@SuppressWarnings("unused")
 		Class<Sibling> sibling = Sibling.class;
 
 		for (ClassLoader cl = systemClassLoader; cl != null; cl = cl.getParent()) {
