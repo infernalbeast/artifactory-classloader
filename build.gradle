@@ -90,6 +90,9 @@ task generateTestLedger {
 		project(":artifactory-classloader-gradle-plugin").sourceSets.main.runtimeClasspath.each { item ->
 			classPath += item.toURI().toURL()
 		}
+		project.sourceSets.main.runtimeClasspath.each { item ->
+			classPath += item.toURI().toURL()
+		}
 		ClassLoader parentClassLoader = Thread.currentThread().getContextClassLoader()
 		ClassLoader classLoader = new URLClassLoader(classPath, parentClassLoader)
 		Class<?> ledgerTaskClass = classLoader.loadClass("com.infernalbeast.artifactory.classloader.LedgerTask")

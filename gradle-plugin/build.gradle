@@ -86,12 +86,15 @@ publishing {
 
 dependencies {
 	// The resources to repackage into executable jar files
-	implementation rootProject
-	implementation group: 'org.yaml', name:'snakeyaml'
+	compileOnly rootProject
+	compileOnly group: 'org.yaml', name:'snakeyaml'
 }
 
 configurations {
 	boot
+	resolveCompileOnly {
+		extendsFrom compileOnly
+	}
 }
 
 dependencies {
@@ -123,11 +126,18 @@ afterEvaluate {
 			}
 		}
 		from {
-			configurations.runtimeClasspath.resolvedConfiguration.resolvedArtifacts.collect {
-				artifact ->
+			configurations.resolveCompileOnly.resolvedConfiguration.resolvedArtifacts.collect { artifact ->
 				zipTree(artifact.file)
 			}
 		}
+	}
+}
+
+eclipse {
+	classpath {
+		plusConfigurations += [
+			configurations.compileOnly
+		]
 	}
 }
 

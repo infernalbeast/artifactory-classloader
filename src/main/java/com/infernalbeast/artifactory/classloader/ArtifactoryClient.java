@@ -101,7 +101,7 @@ public class ArtifactoryClient {
 							return null;
 						} catch (Throwable t) {
 							throwables.add(t);
-							logger.log(Level.INFO, t.getMessage(), t);
+							logger.log(Level.INFO, t.getMessage());
 							try {
 								Files.delete(artifactFile);
 							} catch (Exception e) {
@@ -109,7 +109,7 @@ public class ArtifactoryClient {
 						}
 					}
 					for (Throwable t : throwables) {
-						t.printStackTrace();
+						logger.log(Level.SEVERE, "Exception", t);
 					}
 					throw new RuntimeException("Unable to download " + path);
 				});
