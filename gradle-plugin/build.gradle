@@ -136,7 +136,7 @@ afterEvaluate {
 eclipse {
 	classpath {
 		plusConfigurations += [
-			configurations.compileOnly
+			configurations.resolveCompileOnly
 		]
 	}
 }

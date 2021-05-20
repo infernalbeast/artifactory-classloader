@@ -69,7 +69,7 @@ test.finalizedBy runDiligentlyJar
 task lazyExecutableJar(type: Jar) {
 	dependsOn compileJava
 	from sourceSets.main.output
-	archiveName = "lazy-executable.jar"
+	archiveFileName = "lazy-executable.jar"
 	manifest {
 		attributes(
 				'Main-Class': 'test.artifactory.classloader.MainClass'
@@ -86,7 +86,7 @@ test.finalizedBy runLazyExecutableJar
 task diligentExecutableJar(type: Jar) {
 	dependsOn compileJava
 	from sourceSets.main.output
-	archiveName = "diligent-executable.jar"
+	archiveFileName = "diligent-executable.jar"
 	manifest {
 		attributes(
 				'Main-Class': 'test.artifactory.classloader.MainClass'

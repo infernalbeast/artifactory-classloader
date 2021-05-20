@@ -913,7 +913,7 @@ tasks.withType(JavaCompile) {
 eclipse {
 	classpath {
 		plusConfigurations += [
-			configurations.testCompileOnly
+			configurations.resolveTestCompileOnly
 		]
 		file {
 			whenMerged { classpath ->

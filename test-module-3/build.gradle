@@ -32,6 +32,12 @@ java {
 	modularity.inferModulePath = true
 }
 
+configurations {
+	resolveCompileOnly {
+		extendsFrom compileOnly
+	}
+}
+
 dependencies {
 	compileOnly project(":artifactory-classloader-test-module-1")
 }
@@ -55,7 +61,7 @@ compileJava {
 eclipse {
 	classpath {
 		plusConfigurations += [
-			configurations.compileOnly
+			configurations.resolveCompileOnly
 		]
 		file {
 			whenMerged { classpath ->
