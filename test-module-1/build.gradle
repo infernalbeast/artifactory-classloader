@@ -5,7 +5,7 @@ buildscript {
 			properties.load(it)
 		}
 		properties.each { key, value ->
-			project.ext[key]=value
+			project.ext[key] = value
 		}
 	}
 	def bom

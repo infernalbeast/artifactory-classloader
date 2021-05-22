@@ -39,7 +39,7 @@ configurations {
 }
 
 dependencies {
-	compileOnly project(":artifactory-classloader-test-module-1")
+	compileOnly project(":" + parent.name + "-test-module-1")
 }
 
 compileJava {

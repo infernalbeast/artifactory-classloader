@@ -39,11 +39,11 @@ configurations {
 }
 
 dependencies {
-	compileOnly project(":artifactory-classloader-test-module-1")
+	compileOnly project(":" + parent.name + "-test-module-1")
 }
 
 compileJava {
-	//dependsOn project(":artifactory-classloader-test-module-1").tasks.jar
+	//dependsOn project(":" + parent.name + "-test-module-1").tasks.jar
 	options.compilerArgs += [
 		"--add-exports",
 		"testmodule1/com.infernalbeast.testmodule1private=testmodule3"

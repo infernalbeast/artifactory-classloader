@@ -15,7 +15,7 @@ buildscript {
 	dependencies {
 		if (gradle.parent == null) {
 			//classpath 'com.infernalbeast:artifactory-classloader-gradle-plugin'
-			classpath project(":artifactory-classloader-gradle-plugin")
+			classpath project(":" + parent.name)
 		}
 	}
 	configurations.classpath.attributes.attribute(TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE, 12)
