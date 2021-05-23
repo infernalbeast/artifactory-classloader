@@ -170,7 +170,7 @@ public class MainClass extends Parent {
 		Enumeration<URL> enumeration = systemClassLoader
 				.getResources(SizeFileComparator.class.getName().replaceAll("\\.", "/") + ".class");
 		while (enumeration.hasMoreElements()) {
-			System.err.println("URL: " + enumeration.nextElement());
+			System.out.println("URL: " + enumeration.nextElement());
 		}
 	}
 }
