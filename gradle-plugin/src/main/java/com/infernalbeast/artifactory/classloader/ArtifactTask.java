@@ -10,6 +10,7 @@ import java.util.Map;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.Project;
 import org.gradle.api.java.archives.Manifest;
+import org.gradle.api.logging.Logger;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.InputDirectory;
 import org.gradle.api.tasks.Internal;
@@ -35,15 +36,16 @@ public class ArtifactTask extends DefaultTask {
 		outputDirectory.mkdir();
 		Manifest manifest = jar.getManifest();
 		String mainClass = (String) manifest.getAttributes().get("Main-Class");
+		Logger logger = project.getLogger();
 		if (mainClass != null) {
-			project.getLogger().lifecycle("Updating manifest: " + jar.getName());
+			logger.lifecycle("Updating manifest: {}", jar.getName());
 			Map<String, String> attributes = new HashMap<>();
 			attributes.put("Main-Class", ArtifactoryMainClass.class.getCanonicalName());
 			attributes.put("Diligent-Artifactory-Main-Class", mainClass);
 			attributes.put("Lazy-Artifactory-Main-Class", mainClass);
 			manifest.attributes(attributes);
 		}
-		project.getLogger().lifecycle("Adding artifactory files: " + jar.getName());
+		logger.lifecycle("Adding artifactory files: {}", jar.getName());
 		for (File file : getLibraryDirectory().listFiles()) {
 			jar.from(project.zipTree(file));
 		}
