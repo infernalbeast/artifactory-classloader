@@ -1,1 +1,21 @@
-../gitignore
+# Ignore Gradle project-specific cache directory
+.gradle
+
+# Ignore Gradle executables
+gradle
+gradlew
+gradlew.bat
+
+# Ignore Gradle build output directory
+build
+
+# Ignore eclipse files
+bin
+.classpath
+.project
+.settings
+
+*.hprof
+.attach*
+
+java-source
