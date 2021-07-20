@@ -1,0 +1,63 @@
+buildscript {
+	if (project == rootProject) {
+		def properties = new Properties()
+		new File(rootProject.projectDir.parent, "gradle.properties").toURI().toURL().withInputStream {
+			properties.load(it)
+		}
+		properties.each { key, value ->
+			project.ext[key] = value
+		}
+	}
+	def bom
+	if (System.env.BOM) {
+		bom = System.env.BOM
+	} else {
+		bom = "https://raw.githubusercontent.com/infernalbeast/bom/\${com.infernalbeast:bom}/"
+	}
+	project.ext["bom"] = bom.replaceAll("\\\$\\{com.infernalbeast:bom\\}", rootProject.ext["com.infernalbeast:bom"])
+	apply from: project.ext["bom"] + "load.gradle", to: project
+	apply from: project.ext["gradle-resources"] + "buildscript.gradle", to: {
+		buildscript
+	}
+}
+
+plugins {
+	// Apply the java-library plugin to add support for Java Library
+	id 'java-library'
+}
+
+apply from: rootProject.ext["gradle-resources"] + "build-pre.gradle"
+
+java {
+	modularity.inferModulePath = true
+}
+
+version="1.0.0-SNAPSHOT"
+project.apply plugin: 'maven-publish'
+publishing {
+    publications {
+        maven(MavenPublication) {
+            versionMapping {
+                allVariants {
+                    // Associate a version with the dependencies
+                    fromResolutionResult()
+                }
+            }
+            if (components.hasProperty("java")) {
+                from components.java
+            }
+            if (components.hasProperty("javaPlatform")) {
+                from components.javaPlatform
+            }
+        }
+    }
+    
+    repositories {
+	   maven {
+	       url 'file:///tmp/snapshots'
+	   }
+   }
+    // apply from: "module:/publish-repositories.gradle", to: {}
+}
+
+apply from: rootProject.ext["gradle-resources"] + "build-post.gradle"

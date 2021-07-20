@@ -18,12 +18,14 @@ if (System.env.GRADLE_PLUGIN_TEST) {
 	include ':' + rootProject.name + '-gradle-plugin:test'
 	project(":" + rootProject.name + "-gradle-plugin:test").name = rootProject.name + "-gradle-plugin-test"
 }
-//include 'gradle-plugin-test'
+include 'gradle-plugin-test'
 include ':test-module-1'
 project(":test-module-1").name = rootProject.name + "-test-module-1"
 include ':test-module-2'
 project(":test-module-2").name = rootProject.name + "-test-module-2"
 include ':test-module-3'
 project(":test-module-3").name = rootProject.name + "-test-module-3"
+include ':test-snapshot'
+project(":test-snapshot").name = rootProject.name + "-test-snapshot"
 
 apply from: settings.ext["gradle-resources"] + "settings-post.gradle"

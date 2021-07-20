@@ -29,16 +29,20 @@ plugins {
 apply from: rootProject.ext["gradle-resources"] + "build-pre.gradle"
 
 repositories {
-	maven {
-		url "https://repository.apache.org/snapshots"
-	}
+//	maven {
+//		url "https://repository.apache.org/snapshots"
+//	}
+   maven {
+       url 'file:///tmp/snapshots'
+   }
 }
 
 dependencies {
 	implementation group: 'javax.json', name: 'javax.json-api'
 	implementation group: 'commons-cli', name: 'commons-cli', changing: true
 	implementation group: 'commons-io', name: 'commons-io', version: '2.8.0'
-	implementation group: 'org.apache.commons', name: "commons-compress", version: "1.21-SNAPSHOT"
+	implementation group:: 'com.infernalbeast', name: project.name + "-test-snapshot", version: "1.0.0-SNAPSHOT"
+//	implementation group: 'org.apache.commons', name: "commons-compress", version: "1.21-SNAPSHOT"
 
 	testImplementation 'junit:junit'
 }
