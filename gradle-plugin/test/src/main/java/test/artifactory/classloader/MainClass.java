@@ -28,9 +28,9 @@ import javax.net.ssl.SSLServerSocketFactory;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Options;
-import org.apache.commons.compress.archivers.zip.ZipEncoding;
 import org.apache.commons.io.comparator.SizeFileComparator;
 
+import com.infernalbeast.testsnapshot.Snapshot;
 import com.sun.management.GcInfo;
 import com.sun.management.ThreadMXBean;
 import com.sun.security.auth.NTSid;
@@ -160,9 +160,12 @@ public class MainClass extends Parent {
 		// Try to access the json library
 		Class<Json> jsonClass = Json.class;
 		System.out.println("JSON CLASS: " + jsonClass);
-		// Try to access the snapshot compress library
-		Class<ZipEncoding> zipEncodingClass = ZipEncoding.class;
-		System.out.println("SNAPSHOT ZIP ENCODING CLASS: " + zipEncodingClass);
+		// Try to access the snapshot
+		Class<Snapshot> snapshotClass = Snapshot.class;
+		System.out.println("SNAPSHOT CLASS: " + snapshotClass);
+//		// Try to access the snapshot compress library
+//		Class<ZipEncoding> zipEncodingClass = ZipEncoding.class;
+//		System.out.println("SNAPSHOT ZIP ENCODING CLASS: " + zipEncodingClass);
 		// Try to load a class from the library
 		Class<?> sizeFileComparatorClass = SizeFileComparator.class;
 		System.out.println("APACHE IO CLASS: " + sizeFileComparatorClass);
