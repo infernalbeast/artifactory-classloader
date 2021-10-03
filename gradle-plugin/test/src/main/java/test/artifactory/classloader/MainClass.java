@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.PrintWriter;
 import java.lang.reflect.Method;
 import java.net.URL;
+import java.nio.channels.NetworkChannel;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -39,7 +40,6 @@ import com.sun.security.auth.UserPrincipal;
 import jdk.internal.module.ServicesCatalog;
 import jdk.internal.module.ServicesCatalog.ServiceProvider;
 import jdk.net.NetworkPermission;
-import jdk.net.Sockets;
 
 public class MainClass extends Parent {
 	public static void main(final String[] args) throws Exception {
@@ -128,7 +128,7 @@ public class MainClass extends Parent {
 			classList.add(ThreadMXBean.class);
 			classList.add(GcInfo.class);
 
-			classList.add(Sockets.class);
+			classList.add(NetworkChannel.class);
 			classList.add(NetworkPermission.class);
 
 			classList.add(UserPrincipal.class);
