@@ -46,7 +46,7 @@ public class BackOff {
 		Instant start = Instant.now();
 		int tries;
 		Throwable last = null;
-		for (tries = 0; retries == null | tries < retries; tries++) {
+		for (tries = 0; retries == null || tries < retries; tries++) {
 			try {
 				return execute.execute();
 			} catch (Throwable t) {
