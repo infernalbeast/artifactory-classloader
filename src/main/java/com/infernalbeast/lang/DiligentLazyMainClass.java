@@ -13,7 +13,7 @@ import java.util.logging.Logger;
  *
  * java
  * -Djava.system.class.loader=com.infernalbeast.lang.ArtifactoryDynamicClassLoader
- * com.infernalbeast.lang.DiligentMainClass --main-class <MyMainClass>
+ * com.infernalbeast.lang.DiligentMainClass --main-class &lt;MyMainClass&gt;
  **/
 public class DiligentLazyMainClass {
 	private static final Logger LOGGER = Logger.getLogger(DiligentLazyMainClass.class.getName());

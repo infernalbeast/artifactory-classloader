@@ -836,6 +836,10 @@ tasks.withType(Test) {
 		"java.base/java.lang=ALL-UNNAMED"
 	]
 	jvmArgs += [
+		"--add-opens",
+		"java.base/sun.security.ssl=ALL-UNNAMED"
+	]
+	jvmArgs += [
 		"--add-exports",
 		"java.base/jdk.internal.module=ALL-UNNAMED"
 	]
@@ -871,6 +875,10 @@ tasks.withType(JavaExec) {
 	jvmArgs += [
 		"--add-opens",
 		"java.base/java.lang=ALL-UNNAMED"
+	]
+	jvmArgs += [
+		"--add-opens",
+		"java.base/sun.security.ssl=ALL-UNNAMED"
 	]
 	jvmArgs += [
 		"--add-exports",
@@ -912,6 +920,14 @@ tasks.withType(JavaCompile) {
 		"--add-exports",
 		"java.base/sun.security.ssl=ALL-UNNAMED"
 	]
+}
+
+tasks.withType(Javadoc) {
+//	options.JFlags += [
+//		"--add-exports",
+//		"java.base/jdk.internal.module=ALL-UNNAMED"
+//	]
+	options.addStringOption("-add-exports", "java.base/jdk.internal.module=ALL-UNNAMED");
 }
 
 eclipse {
