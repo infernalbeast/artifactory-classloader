@@ -948,6 +948,7 @@ eclipse {
 					"java.base/sun.security.ssl=ALL-UNNAMED",
 					"java.base/jdk.internal.module=ALL-UNNAMED",
 					"java.base/jdk.internal.logger=ALL-UNNAMED",
+					"testmodule1/com.infernalbeast.testmodule1private=ALL-UNNAMED",
 				].join(":")
 			}
 		}
